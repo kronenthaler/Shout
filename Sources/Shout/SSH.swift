@@ -27,7 +27,9 @@ public class SSH {
     
     public var ptyType: PtyType? = nil
     let sock: Socket
+
     let session: Shout.Session
+    weak var channel: Channel?
     
     public init(host: String, port: Int32 = 22) throws {
         do {
@@ -82,19 +84,20 @@ public class SSH {
     public func execute(_ command: String, output: ((_ output: String) -> ())) throws -> Int32 {
         do {
             let channel = try session.openChannel()
+            self.channel = channel
             
             if let ptyType = ptyType {
                 try channel.requestPty(type: ptyType.rawValue)
             }
             
             try channel.exec(command: command)
-            
+
             while true {
                 let (data, bytes) = try channel.readData()
                 if bytes == 0 {
                     break
                 }
-                
+
                 let str = data.withUnsafeBytes { (pointer: UnsafePointer<CChar>) in
                     return String(cString: pointer)
                 }
@@ -117,6 +120,10 @@ public class SSH {
         let channel = try session.openSCPChannel(localURL: localURL, remotePath: remotePath, permissions: permissions)
         try channel.sendFile()
         return channel.exitStatus()
+    }
+    
+    public func terminate() throws {
+        try channel?.close()
     }
 }
 
