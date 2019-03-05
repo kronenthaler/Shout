@@ -80,6 +80,16 @@ public class SSH {
         }
         return (status, ongoing)
     }
+
+    public func capture(_ command: String, output: ((_ output: String) -> ())) throws -> (status: Int32, output: String) {
+        var ongoing = ""
+        let status = try execute(command) { (progress) in
+            ongoing += progress
+            
+            output(progress)
+        }
+        return (status, ongoing)
+    }
     
     public func execute(_ command: String, output: ((_ output: String) -> ())) throws -> Int32 {
         do {
