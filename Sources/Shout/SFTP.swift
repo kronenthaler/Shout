@@ -23,6 +23,10 @@ public class SFTP {
     }
     
     deinit {
+        // libssh2_sftp_shutdown(sftpSession)
+    }
+
+    public func shutdown() {
         libssh2_sftp_shutdown(sftpSession)
     }
 
