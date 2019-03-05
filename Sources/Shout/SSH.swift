@@ -75,8 +75,8 @@ public class SSH {
     
     public func capture(_ command: String) throws -> (status: Int32, output: String) {
         var ongoing = ""
-        let status = try execute(command) { (output) in
-            ongoing += output
+        let status = try execute(command) { (progress) in
+            ongoing += progress
         }
         return (status, ongoing)
     }
