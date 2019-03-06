@@ -6,7 +6,7 @@
 //
 
 import CSSH
-import struct Foundation.Data
+import Foundation
 
 class Channel {
     
@@ -19,6 +19,9 @@ class Channel {
     
     private let cSession: OpaquePointer
     private let cChannel: OpaquePointer
+
+    private var closed = false    
+    private let syncQueue = DispatchQueue(label: String(describing: Channel.self))
     
     init(cSession: OpaquePointer) throws {
         guard let cChannel = libssh2_channel_open_ex(cSession,
@@ -51,20 +54,25 @@ class Channel {
     }
     
     func readData() throws -> (data: Data, bytes: Int) {
-        var data = Data(repeating: 0, count: Channel.bufferSize)
-        
-        let rc: Int = data.withUnsafeMutableBytes { (buffer: UnsafeMutablePointer<Int8>) in
-            return libssh2_channel_read_ex(cChannel, 0, buffer, Channel.bufferSize)
+        return try syncQueue.sync { () -> (data: Data, bytes: Int) in
+            var data = Data(repeating: 0, count: Channel.bufferSize)
+            
+            let rc: Int = data.withUnsafeMutableBytes { (buffer: UnsafeMutablePointer<Int8>) in
+                return libssh2_channel_read_ex(cChannel, 0, buffer, Channel.bufferSize)
+            }
+            
+            try LibSSH2Error.checkOnRead(code: Int32(rc), session: cSession)
+            
+            return closed ? (Data(), 0) : (data, rc)
         }
-        
-        try LibSSH2Error.checkOnRead(code: Int32(rc), session: cSession)
-        
-        return (data, rc)
     }
     
     func close() throws {
-        let code = libssh2_channel_close(cChannel)
-        try LibSSH2Error.check(code: code, session: cSession)
+        try syncQueue.sync {
+            self.closed = true
+            let code = libssh2_channel_close(cChannel)
+            try LibSSH2Error.check(code: code, session: cSession)
+        }
     }
     
     func waitClosed() throws {
@@ -79,5 +87,4 @@ class Channel {
     deinit {
         libssh2_channel_free(cChannel)
     }
-    
 }
