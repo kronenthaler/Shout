@@ -108,9 +108,15 @@ public class SSH {
                     break
                 }
 
-                let str = data.withUnsafeBytes { (pointer: UnsafePointer<CChar>) in
-                    return String(cString: pointer)
+                let str: String
+                if data.count > 0, data[data.count - 1] == 0 {
+                    str = data.withUnsafeBytes { (pointer: UnsafePointer<CChar>) in
+                        return String(cString: pointer)
+                    }
+                } else {
+                    str = String(decoding: data, as: UTF8.self)
                 }
+                
                 output(str)
             }
             
